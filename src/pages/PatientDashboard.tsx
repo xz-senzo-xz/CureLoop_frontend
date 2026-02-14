@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Pill, Check, X, Clock, Calendar, 
+import {
+  Pill, Check, X, Clock, Calendar,
   TrendingUp, Activity, Award, AlertCircle,
   Sun, Moon, CloudSun
 } from "lucide-react";
@@ -16,7 +16,7 @@ import { format, subDays } from "date-fns";
 const PatientDashboard = () => {
   const { user } = useAuth();
   const [logs, setLogs] = useState<MedicationLog[]>(mockMedicationLogs);
-  
+
   const today = new Date("2026-02-14");
   const todayStr = format(today, "yyyy-MM-dd");
 
@@ -40,7 +40,7 @@ const PatientDashboard = () => {
     };
 
     const todayMetrics = calculate([todayStr]);
-    
+
     return {
       today: todayMetrics,
       week: calculate(last7Days),
@@ -54,10 +54,10 @@ const PatientDashboard = () => {
     for (let i = 1; i < 30; i++) {
       const date = format(subDays(today, i), "yyyy-MM-dd");
       const dayLogs = logs.filter(l => l.date === date && l.status !== "upcoming");
-      const dayRate = dayLogs.length > 0 
-        ? (dayLogs.filter(l => l.status === "taken").length / dayLogs.length) * 100 
+      const dayRate = dayLogs.length > 0
+        ? (dayLogs.filter(l => l.status === "taken").length / dayLogs.length) * 100
         : 0;
-      
+
       if (dayRate >= 75) streak++;
       else break;
     }
@@ -92,7 +92,7 @@ const PatientDashboard = () => {
         <div className="mb-8">
           <p className="text-sm text-gray-500">Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'},</p>
           <h1 className="mb-6 text-3xl font-bold text-gray-900">{user?.name || "Patient"}</h1>
-          
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Card className="border-gray-200 shadow-sm">
@@ -180,25 +180,23 @@ const PatientDashboard = () => {
                     {todayLogs.map((log) => {
                       const med = getMedName(log.medicationId);
                       if (!med) return null;
-                      
+
                       return (
                         <div
                           key={log.id}
-                          className={`flex items-center gap-4 rounded-lg border-2 p-4 transition-all ${
-                            log.status === "taken"
+                          className={`flex items-center gap-4 rounded-lg border-2 p-4 transition-all ${log.status === "taken"
                               ? "border-red-200 bg-red-50"
                               : log.status === "missed"
-                              ? "border-gray-300 bg-gray-50"
-                              : "border-gray-200 bg-white hover:border-red-200"
-                          }`}
+                                ? "border-gray-300 bg-gray-50"
+                                : "border-gray-200 bg-white hover:border-red-200"
+                            }`}
                         >
-                          <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg ${
-                            log.status === "taken"
+                          <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg ${log.status === "taken"
                               ? "bg-red-600 text-white"
                               : log.status === "missed"
-                              ? "bg-gray-400 text-white"
-                              : "bg-gray-100 text-gray-600"
-                          }`}>
+                                ? "bg-gray-400 text-white"
+                                : "bg-gray-100 text-gray-600"
+                            }`}>
                             {log.status === "taken" ? (
                               <Check className="h-6 w-6" />
                             ) : log.status === "missed" ? (
@@ -264,7 +262,7 @@ const PatientDashboard = () => {
                     </div>
                     <Progress value={adherenceMetrics.month.rate} className="h-3" />
                   </div>
-                  
+
                   <div className="grid grid-cols-3 gap-4 rounded-lg bg-gray-50 p-4">
                     <div>
                       <p className="text-xs text-gray-500">Taken</p>
@@ -320,9 +318,9 @@ const PatientDashboard = () => {
                   <div className="rounded-lg border-2 border-red-200 bg-red-50 p-4">
                     <div className="flex items-center gap-3">
                       <span className="text-3xl">
-                        {todayCheckIn.mood === "great" ? "😊" : 
-                         todayCheckIn.mood === "good" ? "🙂" : 
-                         todayCheckIn.mood === "okay" ? "😐" : "😞"}
+                        {todayCheckIn.mood === "great" ? "😊" :
+                          todayCheckIn.mood === "good" ? "🙂" :
+                            todayCheckIn.mood === "okay" ? "😐" : "😞"}
                       </span>
                       <div>
                         <p className="font-semibold capitalize text-gray-900">{todayCheckIn.mood}</p>

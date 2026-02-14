@@ -12,11 +12,32 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("patient");
+  const [healthStatus, setHealthStatus] = useState<string>("");
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Test backend health check
+    try {
+      setHealthStatus("Checking backend connection...");
+      const response = await fetch("http://localhost:5001/api/health");
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Backend health check:", data);
+        setHealthStatus("✓ Backend connected successfully!");
+      } else {
+        setHealthStatus("⚠ Backend responded with error");
+        console.error("Backend health check failed:", response.status);
+      }
+    } catch (error) {
+      setHealthStatus("✗ Cannot connect to backend");
+      console.error("Backend connection error:", error);
+    }
+    
+    // Continue with login
     const success = login(email, password, role);
     if (success) {
       navigate(role === "doctor" ? "/doctor" : "/patient");
@@ -101,6 +122,13 @@ const Login = () => {
                 Sign In as {role === "doctor" ? "Doctor" : "Patient"}
               </Button>
             </form>
+
+            {/* Health Check Status */}
+            {healthStatus && (
+              <div className="mt-3 rounded-md bg-gray-50 p-3">
+                <p className="text-center text-sm text-gray-700">{healthStatus}</p>
+              </div>
+            )}
 
             <p className="mt-4 text-center text-xs text-gray-500">
               Demo mode — any credentials will work

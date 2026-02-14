@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { 
+import {
   Mic, MicOff, ChevronLeft, ChevronRight, Send, Plus, Trash2, Sparkles, Search,
   User, FileText, Pill, CheckCircle2, ArrowLeft, Circle, CheckCircle
 } from "lucide-react";
@@ -35,7 +35,7 @@ const DoctorConsultation = () => {
     phone: "",
     vitalId: "",
   });
-  
+
   // Check if patientId is provided in URL params
   useEffect(() => {
     const patientId = searchParams.get("patientId");
@@ -44,29 +44,33 @@ const DoctorConsultation = () => {
       setIsNewPatient(false);
     }
   }, [searchParams]);
-  
+
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [recordingError, setRecordingError] = useState("");
   const [note, setNote] = useState({
     chiefComplaint: "",
     history: "",
-    examination: "",
+    Observations: "",
     diagnosis: "",
     plan: "",
     observations: "",
   });
   const [meds, setMeds] = useState([{ name: "", dosage: "", frequency: "", time: "", duration: "" }]);
-  
+
   const handleVitalIdSearch = () => {
     if (!vitalIdSearch.trim()) {
       setVitalIdSearchResult(null);
       return;
     }
-    
-    const foundPatient = mockPatients.find(p => 
+
+    const foundPatient = mockPatients.find(p =>
       p.vitalId.toLowerCase() === vitalIdSearch.trim().toLowerCase()
     );
-    
+
     if (foundPatient) {
       setVitalIdSearchResult({ found: true, patient: foundPatient });
       setSelectedPatient(foundPatient.id);
@@ -77,7 +81,7 @@ const DoctorConsultation = () => {
       setIsNewPatient(true);
     }
   };
-  
+
   const canProceedFromStep0 = () => {
     if (isNewPatient) {
       return newPatient.name && newPatient.age && newPatient.gender && newPatient.phone && newPatient.vitalId;
@@ -94,16 +98,103 @@ const DoctorConsultation = () => {
     return false;
   };
 
-  const simulateTranscription = () => {
-    setIsRecording(true);
-    setTimeout(() => {
-      setTranscript(
-        "Patient complains of persistent headaches for the past two weeks, mainly in the morning. " +
-        "No visual disturbances. Blood pressure slightly elevated at last check. " +
-        "Currently on Amlodipine 5mg daily. Reports good medication compliance."
-      );
+  // Audio Recording Functions
+  const startRecording = async () => {
+    try {
+      setRecordingError("");
+      
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Create MediaRecorder instance
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm',
+      });
+      
+      const chunks: Blob[] = [];
+      
+      // Collect audio data
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+      
+      // Start recording
+      recorder.start();
+      setMediaRecorder(recorder);
+      setAudioChunks(chunks);
+      setIsRecording(true);
+      
+    } catch (error) {
+      console.error("Error starting recording:", error);
+      setRecordingError("Failed to access microphone. Please check permissions.");
+    }
+  };
+
+  const stopRecording = async () => {
+    if (!mediaRecorder) return;
+    
+    return new Promise<void>((resolve) => {
+      mediaRecorder.onstop = async () => {
+        // Stop all tracks
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        
+        // Create audio blob
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        
+        // Send to backend for transcription
+        await transcribeAudio(audioBlob);
+        
+        // Reset recording state
+        setMediaRecorder(null);
+        setAudioChunks([]);
+        resolve();
+      };
+      
+      mediaRecorder.stop();
       setIsRecording(false);
-    }, 2000);
+    });
+  };
+
+  const transcribeAudio = async (audioBlob: Blob) => {
+    try {
+      setIsTranscribing(true);
+      setRecordingError("");
+      
+      // Create FormData
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
+      
+      // Send to backend
+      const response = await fetch('http://localhost:5001/api/speech/transcribe', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Update transcript
+        setTranscript(result.transcript);
+      } else {
+        setRecordingError(result.error || "Transcription failed. Please try again.");
+      }
+      
+    } catch (error) {
+      console.error("Error transcribing audio:", error);
+      setRecordingError("Failed to transcribe audio. Please check backend connection.");
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
   };
 
   const generateNote = () => {
@@ -133,12 +224,12 @@ const DoctorConsultation = () => {
       {/* Sidebar Navigation */}
       <div className="w-72 border-r border-gray-200 bg-white flex flex-col">
         <div className="p-6 border-b border-gray-200">
-        <button 
-          onClick={() => navigate("/doctor/patients")} 
+          <button
+            onClick={() => navigate("/doctor/patients")}
             className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors mb-4"
-        >
+          >
             <ArrowLeft className="h-4 w-4" /> Back to Patients
-        </button>
+          </button>
           <h1 className="text-xl font-bold text-gray-900">New Consultation</h1>
           <p className="text-sm text-gray-500 mt-1">Step {step + 1} of {steps.length}</p>
         </div>
@@ -148,7 +239,7 @@ const DoctorConsultation = () => {
             const status = getStepStatus(stepItem.id);
             const Icon = stepItem.icon;
             const isClickable = canNavigateToStep(stepItem.id) || stepItem.id <= step;
-            
+
             return (
               <button
                 key={stepItem.id}
@@ -158,21 +249,19 @@ const DoctorConsultation = () => {
                   }
                 }}
                 disabled={!isClickable}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-left ${
-                  status === "current"
-                    ? "bg-red-50 border-2 border-red-600 text-red-700"
-                    : status === "completed"
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-left ${status === "current"
+                  ? "bg-red-50 border-2 border-red-600 text-red-700"
+                  : status === "completed"
                     ? "bg-green-50 border-2 border-green-200 text-green-700 hover:bg-green-100"
                     : isClickable
-                    ? "border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
-                    : "border-2 border-gray-100 text-gray-400 cursor-not-allowed"
-                }`}
+                      ? "border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
+                      : "border-2 border-gray-100 text-gray-400 cursor-not-allowed"
+                  }`}
               >
-                <div className={`flex-shrink-0 ${
-                  status === "current" ? "text-red-600" :
+                <div className={`flex-shrink-0 ${status === "current" ? "text-red-600" :
                   status === "completed" ? "text-green-600" :
-                  "text-gray-400"
-                }`}>
+                    "text-gray-400"
+                  }`}>
                   {status === "completed" ? (
                     <CheckCircle className="h-5 w-5" />
                   ) : (
@@ -180,17 +269,16 @@ const DoctorConsultation = () => {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className={`font-medium text-sm ${
-                    status === "current" ? "text-red-900" :
+                  <div className={`font-medium text-sm ${status === "current" ? "text-red-900" :
                     status === "completed" ? "text-green-900" :
-                    "text-gray-600"
-                  }`}>
+                      "text-gray-600"
+                    }`}>
                     {stepItem.name}
                   </div>
                   {status === "completed" && (
                     <div className="text-xs text-green-600 mt-0.5">Completed</div>
                   )}
-              </div>
+                </div>
               </button>
             );
           })}
@@ -199,30 +287,30 @@ const DoctorConsultation = () => {
         <div className="p-4 border-t border-gray-200">
           <div className="text-xs text-gray-500 mb-2">Progress</div>
           <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
+            <div
               className="bg-red-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${((step + 1) / steps.length) * 100}%` }}
             />
           </div>
-          </div>
         </div>
+      </div>
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto p-8">
-        {/* Step 0: Select Patient */}
-        {step === 0 && (
+          {/* Step 0: Select Patient */}
+          {step === 0 && (
             <div className="space-y-6 transition-all duration-300">
-                <div>
+              <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Patient Information</h2>
                 <p className="text-gray-600">
-                  {searchMode === "vitalId" 
-                    ? "Search patient by Vital ID" 
-                    : isNewPatient 
-                      ? "Create a new patient" 
+                  {searchMode === "vitalId"
+                    ? "Search patient by Vital ID"
+                    : isNewPatient
+                      ? "Create a new patient"
                       : "Select an existing patient"}
                 </p>
-                </div>
+              </div>
 
               <div className="flex gap-3 mb-6">
                 <Button
@@ -284,17 +372,16 @@ const DoctorConsultation = () => {
                           </Button>
                         </div>
                         <p className="text-xs text-gray-500">
-                          The Vital ID is a unique identifier given to patients using the app. 
+                          The Vital ID is a unique identifier given to patients using the app.
                           It allows any doctor to access the patient's medical record.
                         </p>
                       </div>
 
                       {vitalIdSearchResult && (
-                        <div className={`rounded-lg border-2 p-4 transition-all ${
-                          vitalIdSearchResult.found 
-                            ? "border-green-300 bg-green-50" 
-                            : "border-orange-300 bg-orange-50"
-                        }`}>
+                        <div className={`rounded-lg border-2 p-4 transition-all ${vitalIdSearchResult.found
+                          ? "border-green-300 bg-green-50"
+                          : "border-orange-300 bg-orange-50"
+                          }`}>
                           {vitalIdSearchResult.found ? (
                             <div>
                               <p className="text-sm font-semibold text-green-800 mb-3 flex items-center gap-2">
@@ -382,7 +469,7 @@ const DoctorConsultation = () => {
                       )}
                     </div>
                   ) : isNewPatient ? (
-                <div className="space-y-4">
+                    <div className="space-y-4">
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700">Vital ID *</Label>
                         <Input
@@ -395,233 +482,259 @@ const DoctorConsultation = () => {
                           The Vital ID is a unique identifier given to patients using the app.
                         </p>
                       </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Full Name *</Label>
-                    <Input
-                      placeholder="Enter patient's full name"
-                      value={newPatient.name}
-                      onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
-                      className="border-gray-200 focus:border-red-600 focus:ring-red-600"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">Age *</Label>
-                      <Input
-                        type="number"
-                        placeholder="Age"
-                        value={newPatient.age}
-                        onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })}
-                        className="border-gray-200 focus:border-red-600 focus:ring-red-600"
-                      />
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-gray-700">Full Name *</Label>
+                        <Input
+                          placeholder="Enter patient's full name"
+                          value={newPatient.name}
+                          onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
+                          className="border-gray-200 focus:border-red-600 focus:ring-red-600"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-gray-700">Age *</Label>
+                          <Input
+                            type="number"
+                            placeholder="Age"
+                            value={newPatient.age}
+                            onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })}
+                            className="border-gray-200 focus:border-red-600 focus:ring-red-600"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-gray-700">Gender *</Label>
+                          <select
+                            value={newPatient.gender}
+                            onChange={(e) => setNewPatient({ ...newPatient, gender: e.target.value })}
+                            className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
+                          >
+                            <option value="">Select gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-gray-700">Phone Number *</Label>
+                        <Input
+                          placeholder="+212 6 12 34 56 78"
+                          value={newPatient.phone}
+                          onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
+                          className="border-gray-200 focus:border-red-600 focus:ring-red-600"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">Gender *</Label>
-                      <select
-                        value={newPatient.gender}
-                        onChange={(e) => setNewPatient({ ...newPatient, gender: e.target.value })}
-                        className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
-                      >
-                        <option value="">Select gender</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">Phone Number *</Label>
-                    <Input
-                      placeholder="+212 6 12 34 56 78"
-                      value={newPatient.phone}
-                      onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
-                      className="border-gray-200 focus:border-red-600 focus:ring-red-600"
-                    />
-                  </div>
-                </div>
-              ) : (
+                  ) : (
                     <div className="grid grid-cols-1 gap-3">
-                  {mockPatients.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setSelectedPatient(p.id)}
-                          className={`flex items-center gap-4 rounded-lg border-2 p-4 text-left transition-all ${
-                        selectedPatient === p.id 
-                              ? "border-red-600 bg-red-50 shadow-md" 
-                              : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
-                      }`}
-                    >
-                          <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all ${
-                        selectedPatient === p.id 
-                              ? "bg-red-600 text-white scale-110" 
-                          : "bg-gray-100 text-gray-600"
-                      }`}>
-                        {p.name.split(" ").map((n) => n[0]).join("")}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-900">{p.name}</p>
-                        <p className="text-sm text-gray-600">{p.age}y · {p.conditions.join(", ")}</p>
+                      {mockPatients.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setSelectedPatient(p.id)}
+                          className={`flex items-center gap-4 rounded-lg border-2 p-4 text-left transition-all ${selectedPatient === p.id
+                            ? "border-red-600 bg-red-50 shadow-md"
+                            : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+                            }`}
+                        >
+                          <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all ${selectedPatient === p.id
+                            ? "bg-red-600 text-white scale-110"
+                            : "bg-gray-100 text-gray-600"
+                            }`}>
+                            {p.name.split(" ").map((n) => n[0]).join("")}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900">{p.name}</p>
+                            <p className="text-sm text-gray-600">{p.age}y · {p.conditions.join(", ")}</p>
                             <p className="text-xs text-gray-500 mt-1">Vital ID: {p.vitalId}</p>
-                      </div>
+                          </div>
                           {selectedPatient === p.id && (
                             <CheckCircle className="h-5 w-5 text-red-600" />
                           )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-        )}
+          )}
 
-        {/* Step 1: Transcription */}
-        {step === 1 && (
+          {/* Step 1: Transcription */}
+          {step === 1 && (
             <div className="space-y-6 transition-all duration-300">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Speech-to-Text Transcription</h2>
-                <p className="text-gray-600">Record or manually enter the consultation notes</p>
+                <p className="text-gray-600">Record the consultation or manually enter notes</p>
               </div>
 
               <Card className="border-gray-200 shadow-md">
                 <CardContent className="p-8">
                   <div className="flex flex-col items-center space-y-6">
-                <button
-                  onClick={simulateTranscription}
-                      className={`flex h-24 w-24 items-center justify-center rounded-full transition-all transform hover:scale-105 ${
-                    isRecording 
-                          ? "bg-red-600 text-white animate-pulse shadow-lg" 
+                    <button
+                      onClick={toggleRecording}
+                      disabled={isTranscribing}
+                      className={`flex h-24 w-24 items-center justify-center rounded-full transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                        isRecording
+                          ? "bg-red-600 text-white animate-pulse shadow-lg"
+                          : isTranscribing
+                          ? "bg-blue-600 text-white shadow-lg"
                           : "bg-red-100 text-red-600 hover:bg-red-200 shadow-md"
-                  }`}
-                >
-                      {isRecording ? <MicOff className="h-10 w-10" /> : <Mic className="h-10 w-10" />}
-                </button>
+                      }`}
+                    >
+                      {isRecording ? (
+                        <MicOff className="h-10 w-10" />
+                      ) : (
+                        <Mic className="h-10 w-10" />
+                      )}
+                    </button>
+                    
                     <p className="text-center text-sm font-medium text-gray-700">
-                      {isRecording ? "Recording... Click to stop" : "Click to start recording"}
-              </p>
+                      {isRecording
+                        ? "Recording... Click to stop"
+                        : isTranscribing
+                        ? "Transcribing audio..."
+                        : "Click to start recording"}
+                    </p>
+                    
+                    {recordingError && (
+                      <div className="w-full p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-800">{recordingError}</p>
+                      </div>
+                    )}
+                    
                     <div className="w-full">
-              <Textarea
+                      <Label className="text-sm font-semibold text-gray-700 mb-2 block">
+                        Consultation Transcript
+                      </Label>
+                      <Textarea
                         placeholder="Transcription will appear here, or type directly..."
-                value={transcript}
-                onChange={(e) => setTranscript(e.target.value)}
-                        className="min-h-[300px] border-gray-200 focus:border-red-600 focus:ring-red-600 text-sm"
-              />
+                        value={transcript}
+                        onChange={(e) => setTranscript(e.target.value)}
+                        disabled={isRecording || isTranscribing}
+                        className="min-h-[300px] border-gray-200 focus:border-red-600 focus:ring-red-600 text-sm disabled:opacity-70"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        {transcript.length > 0
+                          ? `${transcript.length} characters`
+                          : "Press the microphone button to start recording"}
+                      </p>
                     </div>
                   </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
             </div>
-        )}
+          )}
 
-        {/* Step 2: Structured Note */}
-        {step === 2 && (
+          {/* Step 2: Structured Note */}
+          {step === 2 && (
             <div className="space-y-6 transition-all duration-300">
               <div className="flex items-center justify-between">
-              <div>
+                <div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">Clinical Note</h2>
                   <p className="text-gray-600">Structured clinical documentation</p>
-              </div>
-              <Button size="sm" variant="outline" onClick={generateNote} className="gap-2">
-                <Sparkles className="h-4 w-4" /> Auto-generate
-              </Button>
+                </div>
+                <Button size="sm" variant="outline" onClick={generateNote} className="gap-2">
+                  <Sparkles className="h-4 w-4" /> Auto-generate
+                </Button>
               </div>
 
               <Card className="border-gray-200 shadow-md">
                 <CardContent className="p-6 space-y-5">
-              {([
-                ["chiefComplaint", "Chief Complaint"],
-                ["history", "History"],
-                ["examination", "Examination"],
-                ["diagnosis", "Diagnosis"],
-                ["plan", "Plan"],
-                ["observations", "Additional Observations"],
-              ] as const).map(([key, label]) => (
-                <div key={key} className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">{label}</Label>
-                  <Textarea
-                    value={note[key]}
-                    onChange={(e) => setNote({ ...note, [key]: e.target.value })}
+                  {([
+                    ["chiefComplaint", "Chief Complaint"],
+                    ["history", "History"],
+                    ["examination", "Examination"],
+                    ["diagnosis", "Diagnosis"],
+                    ["plan", "Plan"],
+                    ["observations", "Additional Observations"],
+                  ] as const).map(([key, label]) => (
+                    <div key={key} className="space-y-2">
+                      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+                      <Textarea
+                        value={note[key]}
+                        onChange={(e) => setNote({ ...note, [key]: e.target.value })}
                         className="min-h-[100px] border-gray-200 focus:border-red-600 focus:ring-red-600"
-                    placeholder={`Enter ${label.toLowerCase()}...`}
-                  />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+                        placeholder={`Enter ${label.toLowerCase()}...`}
+                      />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
             </div>
-        )}
+          )}
 
-        {/* Step 3: Treatment Plan */}
-        {step === 3 && (
+          {/* Step 3: Treatment Plan */}
+          {step === 3 && (
             <div className="space-y-6 transition-all duration-300">
               <div className="flex items-center justify-between">
-              <div>
+                <div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">Treatment Plan</h2>
                   <p className="text-gray-600">Prescribe medications and treatment</p>
-              </div>
-              <Button size="sm" variant="outline" onClick={addMed} className="gap-2">
-                <Plus className="h-4 w-4" /> Add Medication
-              </Button>
+                </div>
+                <Button size="sm" variant="outline" onClick={addMed} className="gap-2">
+                  <Plus className="h-4 w-4" /> Add Medication
+                </Button>
               </div>
 
               <div className="space-y-4">
-              {meds.map((med, i) => (
+                {meds.map((med, i) => (
                   <Card key={i} className="border-gray-200 shadow-md">
                     <CardContent className="p-5">
                       <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm font-semibold text-gray-900">Medication {i + 1}</span>
-                    {meds.length > 1 && (
-                      <button 
-                        onClick={() => removeMed(i)} 
+                        <span className="text-sm font-semibold text-gray-900">Medication {i + 1}</span>
+                        {meds.length > 1 && (
+                          <button
+                            onClick={() => removeMed(i)}
                             className="text-red-600 hover:text-red-700 transition-colors p-1"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                      <Input 
-                        placeholder="Medication name" 
-                        value={med.name} 
-                        onChange={(e) => updateMed(i, "name", e.target.value)}
-                        className="border-gray-200 focus:border-red-600 focus:ring-red-600"
-                      />
-                    </div>
-                    <Input 
-                      placeholder="Dosage" 
-                      value={med.dosage} 
-                      onChange={(e) => updateMed(i, "dosage", e.target.value)}
-                      className="border-gray-200 focus:border-red-600 focus:ring-red-600"
-                    />
-                    <Input 
-                      placeholder="Frequency" 
-                      value={med.frequency} 
-                      onChange={(e) => updateMed(i, "frequency", e.target.value)}
-                      className="border-gray-200 focus:border-red-600 focus:ring-red-600"
-                    />
-                    <Input 
-                      placeholder="Time (e.g. 08:00)" 
-                      value={med.time} 
-                      onChange={(e) => updateMed(i, "time", e.target.value)}
-                      className="border-gray-200 focus:border-red-600 focus:ring-red-600"
-                    />
-                    <Input 
-                      placeholder="Duration" 
-                      value={med.duration} 
-                      onChange={(e) => updateMed(i, "duration", e.target.value)}
-                      className="border-gray-200 focus:border-red-600 focus:ring-red-600"
-                    />
-                  </div>
-            </CardContent>
-          </Card>
+                        <div className="col-span-2">
+                          <Input
+                            placeholder="Medication name"
+                            value={med.name}
+                            onChange={(e) => updateMed(i, "name", e.target.value)}
+                            className="border-gray-200 focus:border-red-600 focus:ring-red-600"
+                          />
+                        </div>
+                        <Input
+                          placeholder="Dosage"
+                          value={med.dosage}
+                          onChange={(e) => updateMed(i, "dosage", e.target.value)}
+                          className="border-gray-200 focus:border-red-600 focus:ring-red-600"
+                        />
+                        <Input
+                          placeholder="Frequency"
+                          value={med.frequency}
+                          onChange={(e) => updateMed(i, "frequency", e.target.value)}
+                          className="border-gray-200 focus:border-red-600 focus:ring-red-600"
+                        />
+                        <Input
+                          placeholder="Time (e.g. 08:00)"
+                          value={med.time}
+                          onChange={(e) => updateMed(i, "time", e.target.value)}
+                          className="border-gray-200 focus:border-red-600 focus:ring-red-600"
+                        />
+                        <Input
+                          placeholder="Duration"
+                          value={med.duration}
+                          onChange={(e) => updateMed(i, "duration", e.target.value)}
+                          className="border-gray-200 focus:border-red-600 focus:ring-red-600"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             </div>
-        )}
+          )}
 
-        {/* Step 4: Review */}
-        {step === 4 && (
+          {/* Step 4: Review */}
+          {step === 4 && (
             <div className="space-y-6 transition-all duration-300">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Review & Finalize</h2>
@@ -630,24 +743,24 @@ const DoctorConsultation = () => {
 
               <div className="grid grid-cols-1 gap-4">
                 <Card className="border-gray-200 shadow-md">
-            <CardHeader>
+                  <CardHeader>
                     <CardTitle className="text-lg">Patient Information</CardTitle>
-            </CardHeader>
+                  </CardHeader>
                   <CardContent>
-                  {isNewPatient ? (
-                    <div>
+                    {isNewPatient ? (
+                      <div>
                         <p className="font-medium text-gray-900 text-lg">{newPatient.name}</p>
                         <p className="text-sm text-gray-600 mt-1">
-                        {newPatient.age}y · {newPatient.gender} · {newPatient.phone}
-                      </p>
+                          {newPatient.age}y · {newPatient.gender} · {newPatient.phone}
+                        </p>
                         {newPatient.vitalId && (
                           <p className="text-xs text-gray-500 mt-1">Vital ID: {newPatient.vitalId}</p>
                         )}
                         <span className="inline-block mt-2 px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
-                        New Patient
-                      </span>
-                    </div>
-                  ) : (
+                          New Patient
+                        </span>
+                      </div>
+                    ) : (
                       <div>
                         <p className="font-medium text-gray-900 text-lg">
                           {mockPatients.find((p) => p.id === selectedPatient)?.name || "Not selected"}
@@ -656,8 +769,8 @@ const DoctorConsultation = () => {
                           <p className="text-xs text-gray-500 mt-1">
                             Vital ID: {mockPatients.find((p) => p.id === selectedPatient)?.vitalId}
                           </p>
-                  )}
-                </div>
+                        )}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -677,7 +790,7 @@ const DoctorConsultation = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                  {meds.filter((m) => m.name).map((m, i) => (
+                      {meds.filter((m) => m.name).map((m, i) => (
                         <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
                           <Pill className="h-4 w-4 text-red-600" />
                           <p className="text-sm text-gray-900">
@@ -688,40 +801,40 @@ const DoctorConsultation = () => {
                         </div>
                       ))}
                       {!meds.some((m) => m.name) && <p className="text-sm text-gray-500">No medications prescribed</p>}
-              </div>
-            </CardContent>
-          </Card>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
-        )}
+          )}
 
           {/* Navigation Footer */}
           <div className="mt-8 flex gap-3 pt-6 border-t border-gray-200">
-          {step > 0 && (
-            <Button 
-              variant="outline" 
-              className="flex-1 border-gray-200" 
-              onClick={() => setStep(step - 1)}
-            >
-              <ChevronLeft className="mr-2 h-4 w-4" /> Back
-            </Button>
-          )}
-          {step < 4 ? (
-            <Button
-              className="flex-1 bg-red-600 hover:bg-red-700"
-              onClick={() => setStep(step + 1)}
-              disabled={step === 0 && !canProceedFromStep0()}
-            >
-              Next <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          ) : (
-            <Button 
-              className="flex-1 bg-red-600 hover:bg-red-700" 
-              onClick={() => navigate("/doctor/patients")}
-            >
+            {step > 0 && (
+              <Button
+                variant="outline"
+                className="flex-1 border-gray-200"
+                onClick={() => setStep(step - 1)}
+              >
+                <ChevronLeft className="mr-2 h-4 w-4" /> Back
+              </Button>
+            )}
+            {step < 4 ? (
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700"
+                onClick={() => setStep(step + 1)}
+                disabled={step === 0 && !canProceedFromStep0()}
+              >
+                Next <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700"
+                onClick={() => navigate("/doctor/patients")}
+              >
                 <Send className="mr-2 h-4 w-4" /> Complete Consultation
-            </Button>
-          )}
+              </Button>
+            )}
           </div>
         </div>
       </div>

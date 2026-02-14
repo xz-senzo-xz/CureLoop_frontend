@@ -22,14 +22,14 @@ const PatientCalendar = () => {
       const date = subDays(today, i);
       const dateStr = format(date, "yyyy-MM-dd");
       const dayLogs = mockMedicationLogs.filter(l => l.date === dateStr && l.status !== "upcoming");
-      
+
       if (dayLogs.length === 0) {
         noData.push(date);
         continue;
       }
-      
+
       const rate = (dayLogs.filter(l => l.status === "taken").length / dayLogs.length) * 100;
-      
+
       if (rate >= 90) highAdherence.push(date);
       else if (rate >= 60) mediumAdherence.push(date);
       else lowAdherence.push(date);
@@ -44,7 +44,7 @@ const PatientCalendar = () => {
     const logs = mockMedicationLogs
       .filter(l => l.date === dateStr)
       .sort((a, b) => a.time.localeCompare(b.time));
-    
+
     const taken = logs.filter(l => l.status === "taken").length;
     const missed = logs.filter(l => l.status === "missed").length;
     const upcoming = logs.filter(l => l.status === "upcoming").length;
@@ -65,7 +65,7 @@ const PatientCalendar = () => {
       return hour >= 12 && hour < 17;
     });
     const evening = logs.filter(l => parseInt(l.time.split(':')[0]) >= 17);
-    
+
     return { morning, afternoon, evening };
   };
 
@@ -81,7 +81,7 @@ const PatientCalendar = () => {
           <h3 className="font-semibold text-gray-900">{title}</h3>
           <Badge variant="secondary" className="text-xs">{logs.length}</Badge>
         </div>
-        
+
         <div className="space-y-2">
           {logs.map((log) => {
             const med = getMedicationDetails(log.medicationId);
@@ -90,22 +90,20 @@ const PatientCalendar = () => {
             return (
               <div
                 key={log.id}
-                className={`flex items-start gap-3 rounded-lg border-2 p-4 transition-all ${
-                  log.status === "taken"
+                className={`flex items-start gap-3 rounded-lg border-2 p-4 transition-all ${log.status === "taken"
                     ? "border-red-200 bg-red-50"
                     : log.status === "missed"
-                    ? "border-gray-300 bg-gray-50"
-                    : "border-gray-200 bg-white"
-                }`}
+                      ? "border-gray-300 bg-gray-50"
+                      : "border-gray-200 bg-white"
+                  }`}
               >
                 <div
-                  className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${
-                    log.status === "taken"
+                  className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${log.status === "taken"
                       ? "bg-red-600 text-white"
                       : log.status === "missed"
-                      ? "bg-gray-400 text-white"
-                      : "bg-gray-200 text-gray-600"
-                  }`}
+                        ? "bg-gray-400 text-white"
+                        : "bg-gray-200 text-gray-600"
+                    }`}
                 >
                   {log.status === "taken" ? (
                     <Check className="h-5 w-5" />
@@ -129,7 +127,7 @@ const PatientCalendar = () => {
                       {log.status}
                     </Badge>
                   </div>
-                  
+
                   <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
@@ -185,7 +183,7 @@ const PatientCalendar = () => {
                   }}
                   disabled={(date) => date > today || date < subDays(today, 30)}
                 />
-                
+
                 {/* Legend */}
                 <div className="mt-6 space-y-2 rounded-lg border border-gray-200 bg-white p-4">
                   <p className="text-xs font-semibold text-gray-700 uppercase">Legend</p>
@@ -221,13 +219,12 @@ const PatientCalendar = () => {
                       {selectedDateData.total} medication{selectedDateData.total !== 1 ? "s" : ""} scheduled
                     </CardDescription>
                   </div>
-                  
+
                   {selectedDateData.total > 0 && (
                     <div className="text-right">
-                      <div className={`text-2xl font-bold ${
-                        selectedDateData.rate >= 90 ? "text-red-600" :
-                        selectedDateData.rate >= 60 ? "text-orange-600" : "text-gray-600"
-                      }`}>
+                      <div className={`text-2xl font-bold ${selectedDateData.rate >= 90 ? "text-red-600" :
+                          selectedDateData.rate >= 60 ? "text-orange-600" : "text-gray-600"
+                        }`}>
                         {selectedDateData.rate}%
                       </div>
                       <div className="text-xs text-gray-500">adherence</div>
