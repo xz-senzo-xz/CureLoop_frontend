@@ -10,6 +10,7 @@ export interface User {
 
 export interface Patient {
   id: string;
+  vitalId: string; // Unique ID given to patients using the app, accessible across all doctors
   name: string;
   age: number;
   gender: string;

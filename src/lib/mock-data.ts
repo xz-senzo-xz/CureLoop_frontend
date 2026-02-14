@@ -10,22 +10,22 @@ export const mockUsers: User[] = [
 
 export const mockPatients: Patient[] = [
   {
-    id: "pat-1", name: "Youssef Bennani", age: 45, gender: "Male",
+    id: "pat-1", vitalId: "VTL-2024-001", name: "Youssef Bennani", age: 45, gender: "Male",
     phone: "+212 6 12 34 56 78", conditions: ["Hypertension", "Type 2 Diabetes"],
     lastVisit: "2026-02-10", adherenceRate: 82, status: "active",
   },
   {
-    id: "pat-2", name: "Fatima Zahra El Idrissi", age: 34, gender: "Female",
+    id: "pat-2", vitalId: "VTL-2024-002", name: "Fatima Zahra El Idrissi", age: 34, gender: "Female",
     phone: "+212 6 98 76 54 32", conditions: ["Asthma"],
     lastVisit: "2026-02-12", adherenceRate: 95, status: "stable",
   },
   {
-    id: "pat-3", name: "Karim Tazi", age: 58, gender: "Male",
+    id: "pat-3", vitalId: "VTL-2024-003", name: "Karim Tazi", age: 58, gender: "Male",
     phone: "+212 6 55 44 33 22", conditions: ["Coronary Artery Disease", "Hyperlipidemia"],
     lastVisit: "2026-02-08", adherenceRate: 61, status: "attention",
   },
   {
-    id: "pat-4", name: "Nadia Ouazzani", age: 28, gender: "Female",
+    id: "pat-4", vitalId: "VTL-2024-004", name: "Nadia Ouazzani", age: 28, gender: "Female",
     phone: "+212 6 11 22 33 44", conditions: ["Iron Deficiency Anemia"],
     lastVisit: "2026-02-13", adherenceRate: 90, status: "stable",
   },
