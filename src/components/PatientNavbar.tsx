@@ -1,7 +1,8 @@
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { User, Bell, Settings } from "lucide-react";
+import { User, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import NotificationPanel from "./NotificationPanel";
 
 const PatientNavbar = () => {
   const { user } = useAuth();
@@ -18,10 +19,7 @@ const PatientNavbar = () => {
         {/* Right side - User info and actions */}
         <div className="flex items-center gap-4">
           {/* Notifications */}
-          <button className="relative flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900">
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-600"></span>
-          </button>
+          <NotificationPanel />
 
           {/* Settings */}
           <button 

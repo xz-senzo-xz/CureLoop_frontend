@@ -80,3 +80,16 @@ export interface Appointment {
   type: string;
   status: "upcoming" | "completed" | "cancelled";
 }
+
+export interface Notification {
+  id: string;
+  patientId: string;
+  type: "medication_reminder" | "medication_missed" | "appointment_reminder" | "general";
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  medicationId?: string;
+  medicationLogId?: string;
+  actionRequired?: boolean;
+}

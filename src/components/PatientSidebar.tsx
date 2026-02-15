@@ -1,13 +1,11 @@
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Pill, Calendar, User, Activity } from "lucide-react";
+import { Home, Pill, User, Activity } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const navigation = [
   { name: "Dashboard", path: "/patient", icon: Home },
   { name: "Medications", path: "/patient/medications", icon: Pill },
-  { name: "Calendar", path: "/patient/calendar", icon: Calendar },
-  { name: "Appointments", path: "/patient/appointments", icon: Activity },
   { name: "Profile", path: "/patient/profile", icon: User },
 ];
 
