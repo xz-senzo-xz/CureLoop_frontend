@@ -11,16 +11,7 @@ A modern healthcare application designed to streamline clinical documentation th
 - **Medication Management**: Track prescriptions and dosage schedules
 - **Patient Records**: Comprehensive view of patient history, consultations, and health metrics
 
-## Tech Stack
 
-- **Framework**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **UI Library**: Radix UI + Tailwind CSS
-- **Routing**: React Router v6
-- **State Management**: TanStack Query (React Query)
-- **Form Handling**: React Hook Form + Zod validation
-- **Charts**: Recharts
-- **Styling**: Tailwind CSS + shadcn/ui components
 
 ## Prerequisites
 
