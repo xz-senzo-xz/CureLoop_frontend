@@ -49,6 +49,27 @@ Before you begin, ensure you have the following installed:
    The application will be available at `http://localhost:5173`
 
 
+## 🏗️ Architecture
+
+The Cureloop platform follows a modern client-server architecture with AI service integration:
+
+### High-Level Architecture
+
+```
+┌─────────────┐         ┌─────────────┐         ┌─────────────┐
+│   Frontend  │◄───────►│   Backend   │◄───────►│  Database   │
+│   (React)   │  REST   │   (Flask)   │  ORM    │  (SQLite)   │
+└─────────────┘   API   └─────────────┘         └─────────────┘
+                              │
+                              ▼
+                   ┌──────────────────────┐
+                   │   AI Services Layer  │
+                   ├──────────────────────┤
+                   │ • ElevenLabs (STT)   │
+                   │ • Groq (NLP)         │
+                   │ • MiniMax (optional) │
+                   └──────────────────────┘
+```
 
 ## Project Structure
 
