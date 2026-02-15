@@ -1,125 +1,255 @@
-# Frontend Integration Guide
+# Clinical Notes API Documentation
 
-## What Your Frontend Should Do
+## Overview
 
-### Step-by-Step Process:
+The backend now has **two separate API endpoints** for processing medical consultations:
 
-1. **Start Recording Audio**
-   - Use browser's `MediaRecorder` API to capture audio from user's microphone
-   - Record in a supported format (webm is recommended for browsers)
-   - Store audio chunks as they're recorded
+1. **Speech-to-Text API** - Converts audio to text transcript
+2. **Clinical Notes Extraction API** - Extracts structured clinical notes from text
 
-2. **Stop Recording**
-   - Stop the MediaRecorder
-   - Combine all audio chunks into a single Blob
-
-3. **Send Audio to API**
-   - Create a FormData object
-   - Append the audio Blob with the key `audio`
-   - Send POST request to `http://localhost:5001/api/speech/transcribe`
-
-4. **Receive Transcript**
-   - Parse the JSON response
-   - If `success: true`, display the `transcript` field
-   - If `success: false`, show the `error` message
+This separation allows for flexible workflows where you can:
+- Call both APIs in sequence (audio → transcript → clinical notes)
+- Call the clinical notes API independently with any text
+- Retry extraction without re-transcribing audio
 
 ---
 
-## Example Flow (Pseudo-code)
+## API Endpoints
+
+### 1. Speech-to-Text API
+
+**Endpoint:** `POST /api/speech/transcribe`
+
+**Description:** Transcribes audio file to text using ElevenLabs API
+
+**Request:**
+- Content-Type: `multipart/form-data`
+- Body: Audio file with key `audio`
+- Supported formats: `mp3`, `wav`, `webm`, `m4a`, `ogg`, `flac`
+- Max file size: 25MB
+
+**Response:**
+```json
+{
+  "success": true,
+  "transcript": "Patient came in complaining of severe headache...",
+  "timestamp": "2026-02-15T10:30:00.000Z"
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X POST http://localhost:5001/api/speech/transcribe \
+  -F "audio=@consultation.mp3"
+```
+
+**Example (JavaScript):**
+```javascript
+const formData = new FormData();
+formData.append('audio', audioFile);
+
+const response = await fetch('http://localhost:5001/api/speech/transcribe', {
+  method: 'POST',
+  body: formData
+});
+
+const data = await response.json();
+console.log(data.transcript);
+```
+
+---
+
+### 2. Clinical Notes Extraction API
+
+**Endpoint:** `POST /api/clinical/extract-clinical-notes`
+
+**Description:** Extracts structured clinical information from raw medical transcription text
+
+**Request:**
+- Content-Type: `application/json`
+- Body:
+```json
+{
+  "text": "Patient came in complaining of severe headache for the past 3 days..."
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "clinical_notes": {
+    "chief_complaint": "Severe headache for the past 3 days",
+    "history": "Patient has a history of migraines but says this one is different and more intense. No fever, no vision changes.",
+    "examination": "Patient appears in mild distress, no neurological deficits noted. Blood pressure is 130/85 mmHg.",
+    "diagnosis": "Tension headache possibly related to stress",
+    "plan": "Prescribe ibuprofen 400mg three times daily. Recommend stress management techniques. Follow up in one week if symptoms persist.",
+    "additional_observations": ""
+  }
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X POST http://localhost:5001/api/clinical/extract-clinical-notes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Patient came in complaining of severe headache for the past 3 days. Patient has a history of migraines but says this one is different and more intense."
+  }'
+```
+
+**Example (JavaScript):**
+```javascript
+const response = await fetch('http://localhost:5001/api/clinical/extract-clinical-notes', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    text: transcriptText
+  })
+});
+
+const data = await response.json();
+console.log(data.clinical_notes);
+```
+
+---
+
+## Complete Workflow Example
+
+### Frontend Implementation
 
 ```javascript
-// 1. Start recording
-const startRecording = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const mediaRecorder = new MediaRecorder(stream);
-  const audioChunks = [];
-  
-  mediaRecorder.ondataavailable = (event) => {
-    audioChunks.push(event.data);
-  };
-  
-  mediaRecorder.start();
-  return { mediaRecorder, audioChunks };
-};
-
-// 2. Stop recording and get audio blob
-const stopRecording = (mediaRecorder, audioChunks) => {
-  return new Promise((resolve) => {
-    mediaRecorder.onstop = () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      resolve(audioBlob);
-    };
-    mediaRecorder.stop();
-  });
-};
-
-// 3. Send to API and get transcript
-const transcribeAudio = async (audioBlob) => {
+// Step 1: Transcribe audio
+async function transcribeAudio(audioFile) {
   const formData = new FormData();
-  formData.append('audio', audioBlob, 'recording.webm');
+  formData.append('audio', audioFile);
   
   const response = await fetch('http://localhost:5001/api/speech/transcribe', {
     method: 'POST',
     body: formData
   });
   
-  const result = await response.json();
-  return result;
-};
+  const data = await response.json();
+  return data.transcript;
+}
 
-// 4. Complete workflow
-const recordAndTranscribe = async () => {
-  // Start recording
-  const { mediaRecorder, audioChunks } = await startRecording();
+// Step 2: Extract clinical notes
+async function extractClinicalNotes(transcript) {
+  const response = await fetch('http://localhost:5001/api/clinical/extract-clinical-notes', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      text: transcript
+    })
+  });
   
-  // Wait for user to speak (e.g., show recording UI)
-  // ...
-  
-  // Stop recording
-  const audioBlob = await stopRecording(mediaRecorder, audioChunks);
-  
-  // Transcribe
-  const result = await transcribeAudio(audioBlob);
-  
-  if (result.success) {
-    console.log('Transcript:', result.transcript);
-    // Display transcript to user
-  } else {
-    console.error('Error:', result.error);
-    // Show error message to user
+  const data = await response.json();
+  return data.clinical_notes;
+}
+
+// Complete workflow
+async function processConsultation(audioFile) {
+  try {
+    // Step 1: Get transcript
+    const transcript = await transcribeAudio(audioFile);
+    console.log('Transcript:', transcript);
+    
+    // Step 2: Extract clinical notes
+    const clinicalNotes = await extractClinicalNotes(transcript);
+    console.log('Clinical Notes:', clinicalNotes);
+    
+    // Now you have both the raw transcript and structured notes
+    return {
+      rawTranscript: transcript,
+      structuredNotes: clinicalNotes
+    };
+  } catch (error) {
+    console.error('Error:', error);
   }
-};
+}
 ```
 
 ---
 
-## API Request Format
+## Clinical Notes Structure
 
-**Endpoint:** `POST http://localhost:5001/api/speech/transcribe`
+The extracted clinical notes contain these 6 fields:
 
-**Headers:**
-- Content-Type: `multipart/form-data` (automatically set by browser)
-
-**Body:**
-- FormData with field `audio` containing the audio file/blob
-
----
-
-## Important Notes
-
-1. **Audio Format**: Browser's MediaRecorder typically outputs `webm` format, which is supported
-2. **File Size**: Keep recordings under 25MB
-3. **CORS**: Already configured to allow requests from any origin (for development)
-4. **Error Handling**: Always check the `success` field in the response
-5. **Loading State**: Show a loading indicator while waiting for transcription (can take a few seconds)
+| Field                     | Description                                   | Example                                              |
+| ------------------------- | --------------------------------------------- | ---------------------------------------------------- |
+| `chief_complaint`         | Main reason for patient's visit               | "Severe headache for 3 days"                         |
+| `history`                 | Patient's medical history and present illness | "History of migraines, this episode is more intense" |
+| `examination`             | Physical examination findings                 | "Blood pressure 130/85, no neurological deficits"    |
+| `diagnosis`               | Doctor's assessment/diagnosis                 | "Tension headache related to stress"                 |
+| `plan`                    | Treatment plan and recommendations            | "Ibuprofen 400mg TID, stress management"             |
+| `additional_observations` | Any other relevant notes                      | "Patient reports high work stress recently"          |
 
 ---
 
-## UI/UX Recommendations
+## Error Handling
 
-1. **Recording Indicator**: Show visual feedback when recording (red dot, animation, etc.)
-2. **Permission Request**: Handle microphone permission gracefully
-3. **Audio Preview**: Optionally let users listen to their recording before transcription
-4. **Loading State**: Show "Transcribing..." message during API call
-5. **Error Messages**: Display user-friendly error messages
-6. **Retry Option**: Allow users to record again if something goes wrong
+### Speech-to-Text Errors
+
+```json
+{
+  "success": false,
+  "error": "No audio file provided"
+}
+```
+
+Common errors:
+- Missing audio file
+- Invalid file format
+- File too large (>25MB)
+- ElevenLabs API error
+
+### Clinical Notes Extraction Errors
+
+```json
+{
+  "success": false,
+  "error": "Missing 'text' field in request body"
+}
+```
+
+Common errors:
+- Missing text field
+- Empty text
+- Groq API error
+
+---
+
+## Health Check Endpoints
+
+### Speech-to-Text Health
+```bash
+GET /api/speech/health
+```
+
+### Clinical Notes Health
+```bash
+GET /api/clinical/health
+```
+
+---
+
+## Environment Variables Required
+
+```env
+ELEVENLABS_API_KEY=your_elevenlabs_api_key
+GROQ_API_KEY=your_groq_api_key
+```
+
+---
+
+## Benefits of Separate APIs
+
+1. **Flexibility**: Extract clinical notes from any text source, not just audio
+2. **Performance**: Can cache transcripts and re-extract notes if needed
+3. **Testing**: Easy to test extraction logic with sample text
+4. **Error Recovery**: If extraction fails, retry without re-transcribing
+5. **Cost Optimization**: Only call extraction API when needed

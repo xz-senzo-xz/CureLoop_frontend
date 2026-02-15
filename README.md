@@ -1,73 +1,116 @@
-# Welcome to your Lovable project
+# Medical Consultation Platform
 
-## Project info
+A modern healthcare application designed to streamline clinical documentation through AI-powered speech-to-text transcription and automated clinical note extraction. Built for both doctors and patients, this platform enhances the consultation experience by reducing administrative overhead and improving record accuracy.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+- **AI-Powered Transcription**: Convert medical consultations from audio to text using ElevenLabs API
+- **Automated Clinical Notes**: Extract structured clinical information (chief complaint, history, examination, diagnosis, treatment plan) using Groq AI
+- **Dual User Interface**: Separate dashboards for doctors and patients with role-based access
+- **Real-time Notifications**: Stay updated with appointment reminders and medication schedules
+- **Medication Management**: Track prescriptions and dosage schedules
+- **Patient Records**: Comprehensive view of patient history, consultations, and health metrics
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- **Framework**: React 18 + TypeScript
+- **Build Tool**: Vite
+- **UI Library**: Radix UI + Tailwind CSS
+- **Routing**: React Router v6
+- **State Management**: TanStack Query (React Query)
+- **Form Handling**: React Hook Form + Zod validation
+- **Charts**: Recharts
+- **Styling**: Tailwind CSS + shadcn/ui components
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Prerequisites
 
-Changes made via Lovable will be committed automatically to this repo.
+Before you begin, ensure you have the following installed:
 
-**Use your preferred IDE**
+- **Node.js**: v18.0.0 or higher
+- **npm**: v9.0.0 or higher (comes with Node.js)
+- **Git**: For version control
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd frontend
+   ```
 
-Follow these steps:
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+3. **Environment Setup**
+   
+   Create a `.env` file in the root directory (if backend integration is required):
+   ```env
+   VITE_API_URL=http://localhost:5001
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+4. **Start the development server**
+   ```bash
+   npm run dev
+   ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+   The application will be available at `http://localhost:5173`
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+
+
+## Project Structure
+
+```
+frontend/
+├── src/
+│   ├── components/      # Reusable UI components
+│   ├── contexts/        # React context providers
+│   ├── hooks/           # Custom React hooks
+│   ├── layouts/         # Page layouts
+│   ├── lib/             # Utility functions and types
+│   ├── pages/           # Route pages
+│   └── App.tsx          # Main application component
+├── helpfiles/           # API documentation and guides
+└── public/              # Static assets
 ```
 
-**Edit a file directly in GitHub**
+## User Roles
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Doctor Dashboard
+- View and manage patient list
+- Conduct consultations with audio recording
+- Generate automated clinical notes
+- Review patient history and medications
 
-**Use GitHub Codespaces**
+### Patient Dashboard
+- View upcoming appointments
+- Access medication schedules
+- Review consultation history
+- Check health metrics and vitals
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Development
 
-## What technologies are used for this project?
+The application uses modern React patterns:
 
-This project is built with:
+- **Functional Components** with hooks
+- **Type-safe** with TypeScript
+- **Component composition** using Radix UI primitives
+- **Responsive design** with Tailwind CSS
+- **Form validation** with Zod schemas
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Contributing
 
-## How can I deploy this project?
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -m 'Add some feature'`)
+4. Push to the branch (`git push origin feature/your-feature`)
+5. Open a Pull Request
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## License
 
-## Can I connect a custom domain to my Lovable project?
+This project is part of a hackathon submission.
 
-Yes, you can!
+## Support
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+For issues or questions, please open an issue in the repository.

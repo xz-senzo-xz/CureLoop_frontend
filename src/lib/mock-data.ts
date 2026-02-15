@@ -1,6 +1,6 @@
 import {
   Patient, Medication, MedicationLog, TreatmentPlan,
-  ConsultationNote, CheckIn, Appointment, User,
+  ConsultationNote, CheckIn, Appointment, User, Notification,
 } from "./types";
 
 export const mockUsers: User[] = [
@@ -10,22 +10,22 @@ export const mockUsers: User[] = [
 
 export const mockPatients: Patient[] = [
   {
-    id: "pat-1", vitalId: "VTL-2024-001", name: "Youssef Bennani", age: 45, gender: "Male",
+    id: "pat-1", name: "Youssef Bennani", age: 45, gender: "Male",
     phone: "+212 6 12 34 56 78", conditions: ["Hypertension", "Type 2 Diabetes"],
     lastVisit: "2026-02-10", adherenceRate: 82, status: "active",
   },
   {
-    id: "pat-2", vitalId: "VTL-2024-002", name: "Fatima Zahra El Idrissi", age: 34, gender: "Female",
+    id: "pat-2", name: "Fatima Zahra El Idrissi", age: 34, gender: "Female",
     phone: "+212 6 98 76 54 32", conditions: ["Asthma"],
     lastVisit: "2026-02-12", adherenceRate: 95, status: "stable",
   },
   {
-    id: "pat-3", vitalId: "VTL-2024-003", name: "Karim Tazi", age: 58, gender: "Male",
+    id: "pat-3", name: "Karim Tazi", age: 58, gender: "Male",
     phone: "+212 6 55 44 33 22", conditions: ["Coronary Artery Disease", "Hyperlipidemia"],
     lastVisit: "2026-02-08", adherenceRate: 61, status: "attention",
   },
   {
-    id: "pat-4", vitalId: "VTL-2024-004", name: "Nadia Ouazzani", age: 28, gender: "Female",
+    id: "pat-4", name: "Nadia Ouazzani", age: 28, gender: "Female",
     phone: "+212 6 11 22 33 44", conditions: ["Iron Deficiency Anemia"],
     lastVisit: "2026-02-13", adherenceRate: 90, status: "stable",
   },
@@ -145,6 +145,79 @@ export const mockAppointments: Appointment[] = [
   { id: "apt-1", patientId: "pat-1", doctorId: "doc-1", date: "2026-03-10", time: "10:00", type: "Follow-up", status: "upcoming" },
   { id: "apt-2", patientId: "pat-2", doctorId: "doc-1", date: "2026-02-28", time: "14:30", type: "Check-up", status: "upcoming" },
 ];
+
+// Generate notifications for medication reminders and missed doses
+export const mockNotifications: Notification[] = (() => {
+  const notifications: Notification[] = [];
+  const today = new Date("2026-02-14");
+  
+  // Find upcoming medications for today
+  const todayStr = today.toISOString().split('T')[0];
+  const upcomingLogs = mockMedicationLogs.filter(
+    log => log.date === todayStr && log.status === "upcoming"
+  );
+  
+  // Create reminders for upcoming medications
+  upcomingLogs.forEach((log, index) => {
+    const medication = mockMedications.find(m => m.id === log.medicationId);
+    if (medication) {
+      const notifTime = new Date(today);
+      const [hour, minute] = log.time.split(':');
+      notifTime.setHours(parseInt(hour) - 1, parseInt(minute), 0, 0); // 1 hour before
+      
+      notifications.push({
+        id: `notif-reminder-${log.id}`,
+        patientId: "pat-1",
+        type: "medication_reminder",
+        title: "Medication Reminder",
+        message: `Time to take ${medication.name} ${medication.dosage} at ${log.time}`,
+        timestamp: notifTime.toISOString(),
+        read: false,
+        medicationId: medication.id,
+        medicationLogId: log.id,
+        actionRequired: true,
+      });
+    }
+  });
+  
+  // Find missed medications from past 3 days
+  for (let daysAgo = 1; daysAgo <= 3; daysAgo++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - daysAgo);
+    const dateStr = date.toISOString().split('T')[0];
+    
+    const missedLogs = mockMedicationLogs.filter(
+      log => log.date === dateStr && log.status === "missed"
+    );
+    
+    missedLogs.forEach(log => {
+      const medication = mockMedications.find(m => m.id === log.medicationId);
+      if (medication) {
+        const notifTime = new Date(date);
+        const [hour, minute] = log.time.split(':');
+        notifTime.setHours(parseInt(hour) + 1, parseInt(minute), 0, 0); // 1 hour after
+        
+        notifications.push({
+          id: `notif-missed-${log.id}`,
+          patientId: "pat-1",
+          type: "medication_missed",
+          title: "Missed Medication",
+          message: `You missed ${medication.name} ${medication.dosage} scheduled for ${log.time} on ${dateStr}`,
+          timestamp: notifTime.toISOString(),
+          read: daysAgo > 1, // Mark older ones as read
+          medicationId: medication.id,
+          medicationLogId: log.id,
+          actionRequired: false,
+        });
+      }
+    });
+  }
+  
+  // Sort by timestamp descending (newest first)
+  return notifications.sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+})();
 
 // Generate weekly adherence data for the current week
 export const weeklyAdherenceData = (() => {

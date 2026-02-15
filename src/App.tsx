@@ -13,7 +13,6 @@ import DoctorPatientView from "./pages/DoctorPatientView";
 import PatientLayout from "./layouts/PatientLayout";
 import PatientDashboard from "./pages/PatientDashboard";
 import PatientMedications from "./pages/PatientMedications";
-import PatientCalendar from "./pages/PatientCalendar";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,7 +44,6 @@ function AppRoutes() {
       <Route path="/patient" element={<PatientLayout />}>
         <Route index element={<PatientDashboard />} />
         <Route path="medications" element={<PatientMedications />} />
-        <Route path="calendar" element={<PatientCalendar />} />
         <Route path="appointments" element={<div className="p-6"><h1 className="font-display text-2xl font-bold">Appointments</h1><p className="mt-2 text-muted-foreground">Coming soon</p></div>} />
         <Route path="profile" element={<div className="p-6"><h1 className="font-display text-2xl font-bold">Profile</h1><p className="mt-2 text-muted-foreground">Coming soon</p></div>} />
       </Route>

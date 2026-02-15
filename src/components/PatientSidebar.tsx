@@ -1,19 +1,23 @@
 import React from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import { Home, Pill, Calendar, User, Activity } from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Home, Pill, User, Activity, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const navigation = [
   { name: "Dashboard", path: "/patient", icon: Home },
   { name: "Medications", path: "/patient/medications", icon: Pill },
-  { name: "Calendar", path: "/patient/calendar", icon: Calendar },
-  { name: "Appointments", path: "/patient/appointments", icon: Activity },
   { name: "Profile", path: "/patient/profile", icon: User },
 ];
 
 const PatientSidebar = () => {
   const location = useLocation();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const handleSignOut = () => {
+    logout();
+    navigate("/");
+  };
 
   return (
     <div className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
@@ -49,7 +53,18 @@ const PatientSidebar = () => {
           );
         })}
       </nav>
-        
+
+      {/* Sign Out Button */}
+      <div className="p-4">
+        <button
+          onClick={handleSignOut}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50 hover:text-red-600"
+        >
+          <LogOut className="h-5 w-5 text-gray-400" />
+          Sign Out
+        </button>
+      </div>
+
       {/* Footer */}
       <div className="border-t border-gray-200 p-4">
         <p className="text-xs text-gray-400 text-center">

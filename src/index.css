@@ -108,7 +108,58 @@
     font-family: 'Inter', 'DM Sans', sans-serif;
   }
 
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: 'DM Sans', 'Inter', sans-serif;
+  }
+}
+
+/* Calendar customization */
+@layer components {
+  /* Override calendar selected day styles */
+  .rdp-day_selected,
+  .rdp-day_selected:hover,
+  .rdp-day_selected:focus {
+    @apply bg-red-600 text-white font-semibold;
+  }
+
+  /* Override today's date styling */
+  .rdp-day_today {
+    @apply font-bold text-red-600;
+  }
+  
+  .rdp-day_today:not(.rdp-day_selected) {
+    @apply bg-transparent;
+  }
+
+  /* Remove default ring/outline colors */
+  .rdp-day:focus-visible {
+    @apply ring-2 ring-red-600 ring-offset-2;
+  }
+
+  /* Hover state for days */
+  .rdp-day:not(.rdp-day_selected):hover {
+    @apply bg-gray-100;
+  }
+
+  /* Override accent colors used by shadcn calendar */
+  .rdp-day[aria-selected="true"] {
+    @apply bg-red-600 text-white;
+  }
+
+  /* Remove accent background from outside/disabled days */
+  .rdp-day.bg-accent {
+    @apply bg-transparent;
+  }
+
+  .rdp-day.text-accent-foreground {
+    @apply text-gray-900;
+  }
+
+  /* Cell background overrides */
+  td:has([aria-selected]) {
+    @apply bg-transparent;
   }
 }

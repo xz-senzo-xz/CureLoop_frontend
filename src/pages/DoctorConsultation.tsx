@@ -54,7 +54,7 @@ const DoctorConsultation = () => {
   const [note, setNote] = useState({
     chiefComplaint: "",
     history: "",
-    Observations: "",
+    examination: "",
     diagnosis: "",
     plan: "",
     observations: "",
@@ -102,30 +102,30 @@ const DoctorConsultation = () => {
   const startRecording = async () => {
     try {
       setRecordingError("");
-      
+
       // Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
+
       // Create MediaRecorder instance
       const recorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm',
       });
-      
+
       const chunks: Blob[] = [];
-      
+
       // Collect audio data
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunks.push(event.data);
         }
       };
-      
+
       // Start recording
       recorder.start();
       setMediaRecorder(recorder);
       setAudioChunks(chunks);
       setIsRecording(true);
-      
+
     } catch (error) {
       console.error("Error starting recording:", error);
       setRecordingError("Failed to access microphone. Please check permissions.");
@@ -134,24 +134,24 @@ const DoctorConsultation = () => {
 
   const stopRecording = async () => {
     if (!mediaRecorder) return;
-    
+
     return new Promise<void>((resolve) => {
       mediaRecorder.onstop = async () => {
         // Stop all tracks
         mediaRecorder.stream.getTracks().forEach(track => track.stop());
-        
+
         // Create audio blob
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        
+
         // Send to backend for transcription
         await transcribeAudio(audioBlob);
-        
+
         // Reset recording state
         setMediaRecorder(null);
         setAudioChunks([]);
         resolve();
       };
-      
+
       mediaRecorder.stop();
       setIsRecording(false);
     });
@@ -161,26 +161,27 @@ const DoctorConsultation = () => {
     try {
       setIsTranscribing(true);
       setRecordingError("");
-      
+
       // Create FormData
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
-      
+
       // Send to backend
       const response = await fetch('http://localhost:5001/api/speech/transcribe', {
         method: 'POST',
         body: formData,
       });
-      
+
       const result = await response.json();
-      
+
+      console.log(result)
       if (result.success) {
         // Update transcript
         setTranscript(result.transcript);
       } else {
         setRecordingError(result.error || "Transcription failed. Please try again.");
       }
-      
+
     } catch (error) {
       console.error("Error transcribing audio:", error);
       setRecordingError("Failed to transcribe audio. Please check backend connection.");
@@ -197,15 +198,55 @@ const DoctorConsultation = () => {
     }
   };
 
-  const generateNote = () => {
-    setNote({
-      chiefComplaint: "Persistent morning headaches for 2 weeks",
-      history: "Patient reports headaches mainly upon waking. No visual disturbances, no nausea. BP slightly elevated at last check.",
-      examination: "BP: 140/90 mmHg. Neurological exam normal. Fundoscopy: no papilledema.",
-      diagnosis: "Tension-type headache, possibly related to suboptimal BP control.",
-      plan: "Adjust antihypertensive. Add BP monitoring diary. Follow up in 2 weeks.",
-      observations: "",
-    });
+  const [isGeneratingNote, setIsGeneratingNote] = useState(false);
+  const [generateNoteError, setGenerateNoteError] = useState("");
+  const [isEditingHistory, setIsEditingHistory] = useState(false);
+
+  const generateNote = async () => {
+    if (!transcript.trim()) {
+      setGenerateNoteError("No transcript available. Please complete the transcription step first.");
+      return;
+    }
+
+    try {
+      setIsGeneratingNote(true);
+      setGenerateNoteError("");
+
+      // Call the clinical notes extraction API
+      const response = await fetch('http://localhost:5001/api/clinical/extract-clinical-notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text: transcript
+        })
+      });
+
+      const result = await response.json();
+
+      console.log(result)
+
+      if (result.success && result.clinical_notes) {
+        // Map the API response to the note state
+        setNote({
+          chiefComplaint: result.clinical_notes.chief_complaint || "",
+          history: result.clinical_notes.history || "",
+          examination: result.clinical_notes.examination || "",
+          diagnosis: result.clinical_notes.diagnosis || "",
+          plan: result.clinical_notes.plan || "",
+          observations: result.clinical_notes.additional_observations || "",
+        });
+      } else {
+        setGenerateNoteError(result.error || "Failed to generate clinical notes. Please try again.");
+      }
+
+    } catch (error) {
+      console.error("Error generating clinical notes:", error);
+      setGenerateNoteError("Failed to generate clinical notes. Please check backend connection.");
+    } finally {
+      setIsGeneratingNote(false);
+    }
   };
 
   const addMed = () => setMeds([...meds, { name: "", dosage: "", frequency: "", time: "", duration: "" }]);
@@ -574,13 +615,12 @@ const DoctorConsultation = () => {
                     <button
                       onClick={toggleRecording}
                       disabled={isTranscribing}
-                      className={`flex h-24 w-24 items-center justify-center rounded-full transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isRecording
-                          ? "bg-red-600 text-white animate-pulse shadow-lg"
-                          : isTranscribing
+                      className={`flex h-24 w-24 items-center justify-center rounded-full transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${isRecording
+                        ? "bg-red-600 text-white animate-pulse shadow-lg"
+                        : isTranscribing
                           ? "bg-blue-600 text-white shadow-lg"
                           : "bg-red-100 text-red-600 hover:bg-red-200 shadow-md"
-                      }`}
+                        }`}
                     >
                       {isRecording ? (
                         <MicOff className="h-10 w-10" />
@@ -588,21 +628,21 @@ const DoctorConsultation = () => {
                         <Mic className="h-10 w-10" />
                       )}
                     </button>
-                    
+
                     <p className="text-center text-sm font-medium text-gray-700">
                       {isRecording
                         ? "Recording... Click to stop"
                         : isTranscribing
-                        ? "Transcribing audio..."
-                        : "Click to start recording"}
+                          ? "Transcribing audio..."
+                          : "Click to start recording"}
                     </p>
-                    
+
                     {recordingError && (
                       <div className="w-full p-4 bg-red-50 border border-red-200 rounded-lg">
                         <p className="text-sm text-red-800">{recordingError}</p>
                       </div>
                     )}
-                    
+
                     <div className="w-full">
                       <Label className="text-sm font-semibold text-gray-700 mb-2 block">
                         Consultation Transcript
@@ -634,31 +674,146 @@ const DoctorConsultation = () => {
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">Clinical Note</h2>
                   <p className="text-gray-600">Structured clinical documentation</p>
                 </div>
-                <Button size="sm" variant="outline" onClick={generateNote} className="gap-2">
-                  <Sparkles className="h-4 w-4" /> Auto-generate
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={generateNote}
+                  disabled={isGeneratingNote || !transcript.trim()}
+                  className="gap-2"
+                >
+                  <Sparkles className={`h-4 w-4 ${isGeneratingNote ? 'animate-spin' : ''}`} />
+                  {isGeneratingNote ? 'Generating...' : 'Auto-generate'}
                 </Button>
               </div>
 
+              {generateNoteError && (
+                <div className="w-full p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">{generateNoteError}</p>
+                </div>
+              )}
+
               <Card className="border-gray-200 shadow-md">
                 <CardContent className="p-6 space-y-5">
-                  {([
-                    ["chiefComplaint", "Chief Complaint"],
-                    ["history", "History"],
-                    ["examination", "Examination"],
-                    ["diagnosis", "Diagnosis"],
-                    ["plan", "Plan"],
-                    ["observations", "Additional Observations"],
-                  ] as const).map(([key, label]) => (
-                    <div key={key} className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
-                      <Textarea
-                        value={note[key]}
-                        onChange={(e) => setNote({ ...note, [key]: e.target.value })}
-                        className="min-h-[100px] border-gray-200 focus:border-red-600 focus:ring-red-600"
-                        placeholder={`Enter ${label.toLowerCase()}...`}
-                      />
+                  {/* Chief Complaint */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">Chief Complaint</Label>
+                    <Textarea
+                      value={note.chiefComplaint}
+                      onChange={(e) => setNote({ ...note, chiefComplaint: e.target.value })}
+                      className="min-h-[100px] border-gray-200 focus:border-red-600 focus:ring-red-600"
+                      placeholder="Enter chief complaint..."
+                    />
+                  </div>
+
+                  {/* History - Special formatted display */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-semibold text-gray-700">History</Label>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsEditingHistory(!isEditingHistory)}
+                        className="text-xs h-7"
+                      >
+                        {isEditingHistory ? "Save" : "Edit"}
+                      </Button>
                     </div>
-                  ))}
+
+                    {isEditingHistory ? (
+                      // Edit Mode - Show textarea
+                      <Textarea
+                        value={note.history}
+                        onChange={(e) => setNote({ ...note, history: e.target.value })}
+                        className="min-h-[300px] border-2 border-red-600 focus:border-red-600 focus:ring-red-600 font-mono text-sm"
+                        placeholder="Enter patient history...&#10;&#10;Format:&#10;**Section Name:**&#10;• Bullet point 1&#10;• Bullet point 2"
+                        autoFocus
+                      />
+                    ) : (
+                      // View Mode - Show formatted content
+                      <div className="border-2 border-gray-200 rounded-md p-4 bg-white min-h-[300px] overflow-y-auto">
+                        {note.history ? (
+                          <div className="prose prose-sm max-w-none">
+                            {note.history.split('\n').map((line, idx) => {
+                              // Check if line is a header (starts with ** and ends with **)
+                              if (line.trim().match(/^\*\*(.+?)\*\*:?$/)) {
+                                const headerText = line.trim().replace(/^\*\*/, '').replace(/\*\*:?$/, '');
+                                return (
+                                  <h3 key={idx} className="text-base font-bold text-red-700 mt-4 mb-2 first:mt-0">
+                                    {headerText}
+                                  </h3>
+                                );
+                              }
+                              // Check if line is a bullet point
+                              else if (line.trim().startsWith('•')) {
+                                return (
+                                  <div key={idx} className="flex items-start gap-2 ml-2 my-1.5">
+                                    <span className="text-red-600 font-bold mt-0.5">•</span>
+                                    <span className="text-gray-700 text-sm flex-1 leading-relaxed">{line.trim().substring(1).trim()}</span>
+                                  </div>
+                                );
+                              }
+                              // Regular line
+                              else if (line.trim()) {
+                                return (
+                                  <p key={idx} className="text-gray-700 text-sm my-1.5 leading-relaxed">
+                                    {line}
+                                  </p>
+                                );
+                              }
+                              // Empty line
+                              return <div key={idx} className="h-3" />;
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-gray-400 text-sm italic">No history entered. Click "Edit" to add patient history.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Examination */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">Examination</Label>
+                    <Textarea
+                      value={note.examination}
+                      onChange={(e) => setNote({ ...note, examination: e.target.value })}
+                      className="min-h-[150px] border-gray-200 focus:border-red-600 focus:ring-red-600"
+                      placeholder="Enter examination findings..."
+                    />
+                  </div>
+
+                  {/* Diagnosis */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">Diagnosis</Label>
+                    <Textarea
+                      value={note.diagnosis}
+                      onChange={(e) => setNote({ ...note, diagnosis: e.target.value })}
+                      className="min-h-[100px] border-gray-200 focus:border-red-600 focus:ring-red-600"
+                      placeholder="Enter diagnosis..."
+                    />
+                  </div>
+
+                  {/* Plan */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">Plan</Label>
+                    <Textarea
+                      value={note.plan}
+                      onChange={(e) => setNote({ ...note, plan: e.target.value })}
+                      className="min-h-[150px] border-gray-200 focus:border-red-600 focus:ring-red-600"
+                      placeholder="Enter treatment plan..."
+                    />
+                  </div>
+
+                  {/* Additional Observations */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-gray-700">Additional Observations</Label>
+                    <Textarea
+                      value={note.observations}
+                      onChange={(e) => setNote({ ...note, observations: e.target.value })}
+                      className="min-h-[100px] border-gray-200 focus:border-red-600 focus:ring-red-600"
+                      placeholder="Enter additional observations..."
+                    />
+                  </div>
                 </CardContent>
               </Card>
             </div>
